@@ -292,7 +292,7 @@ router.post("/status", async (req, res) => {
               name: item[nameKey],
               duration: item[durationKey] || 0,
               count: item[countKey] || 0,
-              prod_lose: parseInt((item[durationKey] / item.monitoring_time) * item.prod_target),
+              prod_lose: parseInt(item[durationKey] / item.cycle_time_target),
               color: masterColor.find((i) => i.name.toUpperCase() === item[nameKey].toUpperCase())?.color || "#464646",
             });
           }
