@@ -35,6 +35,12 @@ app.use("/nat/assy/combine-realtime", require("./api_nat/nat_assy_combine_realti
 app.use("/nhb/tn/tn-realtime", require("./api_nhb/nhb_tn_tn_realtime"));
 
 // NMB
+app.use("/nmb_mms_turning", require("./api_nmb/nmb_mms_turning"));
+app.use("/nmb_mms_bore", require("./api_nmb/nmb_mms_bore"));
+app.use("/nmb_mms_or", require("./api_nmb/nmb_mms_or"));
+app.use("/nmb_mms_ir", require("./api_nmb/nmb_mms_ir"));
+app.use("/nmb_mms_sf", require("./api_nmb/nmb_mms_sf"));
+app.use("/nmb_mms_gtline", require("./api_nmb/nmb_mms_gtline"));
 app.use("/nmb/assy/agr-realtime", require("./api_nmb/nmb_assy_agr_realtime"));
 app.use("/nmb/assy/alu-realtime", require("./api_nmb/nmb_assy_alu_realtime"));
 app.use("/nmb/assy/and-realtime", require("./api_nmb/nmb_assy_and_realtime"));

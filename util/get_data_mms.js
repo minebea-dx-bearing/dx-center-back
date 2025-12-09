@@ -1,6 +1,21 @@
 const moment = require("moment");
 const axios = require("axios");
 
+const escapeSqlString = (str) => {
+  if (str === null || str === undefined || str === "") {
+    return "NULL";
+  }
+  const escapedStr = String(str).replace(/'/g, "''");
+  return `'${escapedStr}'`;
+};
+
+const formatNumberValue = (value) => {
+  if (value === null || value === undefined || value === "") {
+    return "NULL";
+  }
+  return String(value);
+};
+
 const get_data_mms = async (url, dbms, database) => {
   try {
     let nowDate = moment();
@@ -12,18 +27,18 @@ const get_data_mms = async (url, dbms, database) => {
     }
 
     let machineData = await axios.get(`${url}/v2/grouped_signals/by_line`);
-    machineData = machineData.data.flatMap((item) => {
-      return item.signals.map((signal) => {
-        return {
-          mc_type: item.name.toUpperCase(),
-          mc_no: signal.name.toUpperCase(),
-          number: signal.number,
-        };
+    machineData = machineData.data
+      .flatMap((item) => {
+        return item.signals.map((signal) => {
+          return {
+            mc_type: item.name.toUpperCase(),
+            mc_no: signal.name.toUpperCase(),
+            number: signal.number,
+          };
+        });
       });
-    });
 
     let allNumber = machineData.map((item) => item.number).join(",");
-
 
     let taktTimeSignal = await (await axios.get(`${url}/v1/list/signals/monitors/takt_time?signal_numbers=${allNumber}&count=100`)).data.data;
     machineData = machineData.map((item) => {
@@ -40,9 +55,9 @@ const get_data_mms = async (url, dbms, database) => {
         const middle = Math.floor(data_cycle_time.length / 2);
 
         if (data_cycle_time.length % 2 === 0) {
-          median = (data_cycle_time[middle - 1] + data_cycle_time[middle]) / 2;
+          median = ((data_cycle_time[middle - 1] + data_cycle_time[middle]) / 2) || 0;
         } else {
-          median = data_cycle_time[middle];
+          median = data_cycle_time[middle] || 0;
         }
         return {
           ...item,
@@ -97,7 +112,7 @@ const get_data_mms = async (url, dbms, database) => {
           prod_ng: findData.ngCount,
           monitoring_time: findData.monitoringTime,
           uptime_sec: findData.uptimeSec,
-          cycle_time_actual: findData.uptimeSec === 0 ? null : item.cycle_time_actual,
+          cycle_time_actual: findData.productionQuantity1 === 0 ? null : item.cycle_time_actual,
           totalStatus,
         };
       }
@@ -336,6 +351,21 @@ const get_data_mms = async (url, dbms, database) => {
     }
 
     for (let i = 0; i < machineData.length; i++) {
+      const data = machineData[i];
+
+      const totalStatuses = data.totalStatus || [];
+      let statusValues = "";
+
+      for (let j = 0; j <= 44; j++) {
+        const status = totalStatuses[j];
+
+        const name = status ? escapeSqlString(status.name) : "NULL";
+        const duration = status ? formatNumberValue(status.duration) : "NULL";
+        const count = status ? formatNumberValue(status.count) : "NULL";
+
+        statusValues += `,${name},${duration},${count}`;
+      }
+
       await dbms.query(
         `
           INSERT INTO ${database}
@@ -492,201 +522,23 @@ const get_data_mms = async (url, dbms, database) => {
           )
           VALUES
           (
-            ${machineData[i].registered ? `'${machineData[i].registered}'` : "NULL"}
-            ,${machineData[i].date ? `'${machineData[i].date}'` : "NULL"}
-            ,${machineData[i].shift ? `'${machineData[i].shift}'` : "NULL"}
-            ,${machineData[i].mc_type ? `'${machineData[i].mc_type}'` : "NULL"}
-            ,${machineData[i].mc_no ? `'${machineData[i].mc_no}'` : "NULL"}
-            ,${machineData[i].part_no ? `'${machineData[i].part_no}'` : "NULL"}
-            ,${machineData[i].ring_type}
-            ,${machineData[i].cycle_time_target ? machineData[i].cycle_time_target : "NULL"}
-            ,${machineData[i].cycle_time_actual ? machineData[i].cycle_time_actual : "NULL"}
-            ,${machineData[i].prod_target}
-            ,${machineData[i].prod_result}
-            ,${machineData[i].prod_ng}
+            ${escapeSqlString(machineData[i].registered)}
+            ,${escapeSqlString(machineData[i].date)}
+            ,${escapeSqlString(machineData[i].shift)}
+            ,${escapeSqlString(machineData[i].mc_type)}
+            ,${escapeSqlString(machineData[i].mc_no)}
+            ,${escapeSqlString(machineData[i].part_no)}
+            ,${escapeSqlString(machineData[i].ring_type)}
+            ,${formatNumberValue(machineData[i].cycle_time_target)}
+            ,${formatNumberValue(machineData[i].cycle_time_actual)}
+            ,${formatNumberValue(machineData[i].prod_target)}
+            ,${formatNumberValue(machineData[i].prod_result)}
+            ,${formatNumberValue(machineData[i].prod_ng)}
 
-            ,${machineData[i].monitoring_time}
-            ,${machineData[i].uptime_sec}
+            ,${formatNumberValue(machineData[i].monitoring_time)}
+            ,${formatNumberValue(machineData[i].uptime_sec)}
 
-            ,${machineData[i].totalStatus[0] ? `'${machineData[i].totalStatus[0].name}'` : "NULL"}
-            ,${machineData[i].totalStatus[0] ? `${machineData[i].totalStatus[0].duration}` : "NULL"}
-            ,${machineData[i].totalStatus[0] ? `${machineData[i].totalStatus[0].count}` : "NULL"}
-
-            ,${machineData[i].totalStatus[1] ? `'${machineData[i].totalStatus[1].name}'` : "NULL"}
-            ,${machineData[i].totalStatus[1] ? `${machineData[i].totalStatus[1].duration}` : "NULL"}
-            ,${machineData[i].totalStatus[1] ? `${machineData[i].totalStatus[1].count}` : "NULL"}
-
-            ,${machineData[i].totalStatus[2] ? `'${machineData[i].totalStatus[2].name}'` : "NULL"}
-            ,${machineData[i].totalStatus[2] ? `${machineData[i].totalStatus[2].duration}` : "NULL"}
-            ,${machineData[i].totalStatus[2] ? `${machineData[i].totalStatus[2].count}` : "NULL"}
-
-            ,${machineData[i].totalStatus[3] ? `'${machineData[i].totalStatus[3].name}'` : "NULL"}
-            ,${machineData[i].totalStatus[3] ? `${machineData[i].totalStatus[3].duration}` : "NULL"}
-            ,${machineData[i].totalStatus[3] ? `${machineData[i].totalStatus[3].count}` : "NULL"}
-
-            ,${machineData[i].totalStatus[4] ? `'${machineData[i].totalStatus[4].name}'` : "NULL"}
-            ,${machineData[i].totalStatus[4] ? `${machineData[i].totalStatus[4].duration}` : "NULL"}
-            ,${machineData[i].totalStatus[4] ? `${machineData[i].totalStatus[4].count}` : "NULL"}
-
-            ,${machineData[i].totalStatus[5] ? `'${machineData[i].totalStatus[5].name}'` : "NULL"}
-            ,${machineData[i].totalStatus[5] ? `${machineData[i].totalStatus[5].duration}` : "NULL"}
-            ,${machineData[i].totalStatus[5] ? `${machineData[i].totalStatus[5].count}` : "NULL"}
-
-            ,${machineData[i].totalStatus[6] ? `'${machineData[i].totalStatus[6].name}'` : "NULL"}
-            ,${machineData[i].totalStatus[6] ? `${machineData[i].totalStatus[6].duration}` : "NULL"}
-            ,${machineData[i].totalStatus[6] ? `${machineData[i].totalStatus[6].count}` : "NULL"}
-
-            ,${machineData[i].totalStatus[7] ? `'${machineData[i].totalStatus[7].name}'` : "NULL"}
-            ,${machineData[i].totalStatus[7] ? `${machineData[i].totalStatus[7].duration}` : "NULL"}
-            ,${machineData[i].totalStatus[7] ? `${machineData[i].totalStatus[7].count}` : "NULL"}
-
-            ,${machineData[i].totalStatus[8] ? `'${machineData[i].totalStatus[8].name}'` : "NULL"}
-            ,${machineData[i].totalStatus[8] ? `${machineData[i].totalStatus[8].duration}` : "NULL"}
-            ,${machineData[i].totalStatus[8] ? `${machineData[i].totalStatus[8].count}` : "NULL"}
-
-            ,${machineData[i].totalStatus[9] ? `'${machineData[i].totalStatus[9].name}'` : "NULL"}
-            ,${machineData[i].totalStatus[9] ? `${machineData[i].totalStatus[9].duration}` : "NULL"}
-            ,${machineData[i].totalStatus[9] ? `${machineData[i].totalStatus[9].count}` : "NULL"}
-
-            ,${machineData[i].totalStatus[10] ? `'${machineData[i].totalStatus[10].name}'` : "NULL"}
-            ,${machineData[i].totalStatus[10] ? `${machineData[i].totalStatus[10].duration}` : "NULL"}
-            ,${machineData[i].totalStatus[10] ? `${machineData[i].totalStatus[10].count}` : "NULL"}
-
-            ,${machineData[i].totalStatus[11] ? `'${machineData[i].totalStatus[11].name}'` : "NULL"}
-            ,${machineData[i].totalStatus[11] ? `${machineData[i].totalStatus[11].duration}` : "NULL"}
-            ,${machineData[i].totalStatus[11] ? `${machineData[i].totalStatus[11].count}` : "NULL"}
-
-            ,${machineData[i].totalStatus[12] ? `'${machineData[i].totalStatus[12].name}'` : "NULL"}
-            ,${machineData[i].totalStatus[12] ? `${machineData[i].totalStatus[12].duration}` : "NULL"}
-            ,${machineData[i].totalStatus[12] ? `${machineData[i].totalStatus[12].count}` : "NULL"}
-
-            ,${machineData[i].totalStatus[13] ? `'${machineData[i].totalStatus[13].name}'` : "NULL"}
-            ,${machineData[i].totalStatus[13] ? `${machineData[i].totalStatus[13].duration}` : "NULL"}
-            ,${machineData[i].totalStatus[13] ? `${machineData[i].totalStatus[13].count}` : "NULL"}
-
-            ,${machineData[i].totalStatus[14] ? `'${machineData[i].totalStatus[14].name}'` : "NULL"}
-            ,${machineData[i].totalStatus[14] ? `${machineData[i].totalStatus[14].duration}` : "NULL"}
-            ,${machineData[i].totalStatus[14] ? `${machineData[i].totalStatus[14].count}` : "NULL"}
-
-            ,${machineData[i].totalStatus[15] ? `'${machineData[i].totalStatus[15].name}'` : "NULL"}
-            ,${machineData[i].totalStatus[15] ? `${machineData[i].totalStatus[15].duration}` : "NULL"}
-            ,${machineData[i].totalStatus[15] ? `${machineData[i].totalStatus[15].count}` : "NULL"}
-
-            ,${machineData[i].totalStatus[16] ? `'${machineData[i].totalStatus[16].name}'` : "NULL"}
-            ,${machineData[i].totalStatus[16] ? `${machineData[i].totalStatus[16].duration}` : "NULL"}
-            ,${machineData[i].totalStatus[16] ? `${machineData[i].totalStatus[16].count}` : "NULL"}
-
-            ,${machineData[i].totalStatus[17] ? `'${machineData[i].totalStatus[17].name}'` : "NULL"}
-            ,${machineData[i].totalStatus[17] ? `${machineData[i].totalStatus[17].duration}` : "NULL"}
-            ,${machineData[i].totalStatus[17] ? `${machineData[i].totalStatus[17].count}` : "NULL"}
-
-            ,${machineData[i].totalStatus[18] ? `'${machineData[i].totalStatus[18].name}'` : "NULL"}
-            ,${machineData[i].totalStatus[18] ? `${machineData[i].totalStatus[18].duration}` : "NULL"}
-            ,${machineData[i].totalStatus[18] ? `${machineData[i].totalStatus[18].count}` : "NULL"}
-
-            ,${machineData[i].totalStatus[19] ? `'${machineData[i].totalStatus[19].name}'` : "NULL"}
-            ,${machineData[i].totalStatus[19] ? `${machineData[i].totalStatus[19].duration}` : "NULL"}
-            ,${machineData[i].totalStatus[19] ? `${machineData[i].totalStatus[19].count}` : "NULL"}
-
-            ,${machineData[i].totalStatus[20] ? `'${machineData[i].totalStatus[20].name}'` : "NULL"}
-            ,${machineData[i].totalStatus[20] ? `${machineData[i].totalStatus[20].duration}` : "NULL"}
-            ,${machineData[i].totalStatus[20] ? `${machineData[i].totalStatus[20].count}` : "NULL"}
-
-            ,${machineData[i].totalStatus[21] ? `'${machineData[i].totalStatus[21].name}'` : "NULL"}
-            ,${machineData[i].totalStatus[21] ? `${machineData[i].totalStatus[21].duration}` : "NULL"}
-            ,${machineData[i].totalStatus[21] ? `${machineData[i].totalStatus[21].count}` : "NULL"}
-
-            ,${machineData[i].totalStatus[22] ? `'${machineData[i].totalStatus[22].name}'` : "NULL"}
-            ,${machineData[i].totalStatus[22] ? `${machineData[i].totalStatus[22].duration}` : "NULL"}
-            ,${machineData[i].totalStatus[22] ? `${machineData[i].totalStatus[22].count}` : "NULL"}
-
-            ,${machineData[i].totalStatus[23] ? `'${machineData[i].totalStatus[23].name}'` : "NULL"}
-            ,${machineData[i].totalStatus[23] ? `${machineData[i].totalStatus[23].duration}` : "NULL"}
-            ,${machineData[i].totalStatus[23] ? `${machineData[i].totalStatus[23].count}` : "NULL"}
-
-            ,${machineData[i].totalStatus[24] ? `'${machineData[i].totalStatus[24].name}'` : "NULL"}
-            ,${machineData[i].totalStatus[24] ? `${machineData[i].totalStatus[24].duration}` : "NULL"}
-            ,${machineData[i].totalStatus[24] ? `${machineData[i].totalStatus[24].count}` : "NULL"}
-
-            ,${machineData[i].totalStatus[25] ? `'${machineData[i].totalStatus[25].name}'` : "NULL"}
-            ,${machineData[i].totalStatus[25] ? `${machineData[i].totalStatus[25].duration}` : "NULL"}
-            ,${machineData[i].totalStatus[25] ? `${machineData[i].totalStatus[25].count}` : "NULL"}
-
-            ,${machineData[i].totalStatus[26] ? `'${machineData[i].totalStatus[26].name}'` : "NULL"}
-            ,${machineData[i].totalStatus[26] ? `${machineData[i].totalStatus[26].duration}` : "NULL"}
-            ,${machineData[i].totalStatus[26] ? `${machineData[i].totalStatus[26].count}` : "NULL"}
-
-            ,${machineData[i].totalStatus[27] ? `'${machineData[i].totalStatus[27].name}'` : "NULL"}
-            ,${machineData[i].totalStatus[27] ? `${machineData[i].totalStatus[27].duration}` : "NULL"}
-            ,${machineData[i].totalStatus[27] ? `${machineData[i].totalStatus[27].count}` : "NULL"}
-
-            ,${machineData[i].totalStatus[28] ? `'${machineData[i].totalStatus[28].name}'` : "NULL"}
-            ,${machineData[i].totalStatus[28] ? `${machineData[i].totalStatus[28].duration}` : "NULL"}
-            ,${machineData[i].totalStatus[28] ? `${machineData[i].totalStatus[28].count}` : "NULL"}
-
-            ,${machineData[i].totalStatus[29] ? `'${machineData[i].totalStatus[29].name}'` : "NULL"}
-            ,${machineData[i].totalStatus[29] ? `${machineData[i].totalStatus[29].duration}` : "NULL"}
-            ,${machineData[i].totalStatus[29] ? `${machineData[i].totalStatus[29].count}` : "NULL"}
-
-            ,${machineData[i].totalStatus[30] ? `'${machineData[i].totalStatus[30].name}'` : "NULL"}
-            ,${machineData[i].totalStatus[30] ? `${machineData[i].totalStatus[30].duration}` : "NULL"}
-            ,${machineData[i].totalStatus[30] ? `${machineData[i].totalStatus[30].count}` : "NULL"}
-
-            ,${machineData[i].totalStatus[31] ? `'${machineData[i].totalStatus[31].name}'` : "NULL"}
-            ,${machineData[i].totalStatus[31] ? `${machineData[i].totalStatus[31].duration}` : "NULL"}
-            ,${machineData[i].totalStatus[31] ? `${machineData[i].totalStatus[31].count}` : "NULL"}
-
-            ,${machineData[i].totalStatus[32] ? `'${machineData[i].totalStatus[32].name}'` : "NULL"}
-            ,${machineData[i].totalStatus[32] ? `${machineData[i].totalStatus[32].duration}` : "NULL"}
-            ,${machineData[i].totalStatus[32] ? `${machineData[i].totalStatus[32].count}` : "NULL"}
-
-            ,${machineData[i].totalStatus[33] ? `'${machineData[i].totalStatus[33].name}'` : "NULL"}
-            ,${machineData[i].totalStatus[33] ? `${machineData[i].totalStatus[33].duration}` : "NULL"}
-            ,${machineData[i].totalStatus[33] ? `${machineData[i].totalStatus[33].count}` : "NULL"}
-
-            ,${machineData[i].totalStatus[34] ? `'${machineData[i].totalStatus[34].name}'` : "NULL"}
-            ,${machineData[i].totalStatus[34] ? `${machineData[i].totalStatus[34].duration}` : "NULL"}
-            ,${machineData[i].totalStatus[34] ? `${machineData[i].totalStatus[34].count}` : "NULL"}
-
-            ,${machineData[i].totalStatus[35] ? `'${machineData[i].totalStatus[35].name}'` : "NULL"}
-            ,${machineData[i].totalStatus[35] ? `${machineData[i].totalStatus[35].duration}` : "NULL"}
-            ,${machineData[i].totalStatus[35] ? `${machineData[i].totalStatus[35].count}` : "NULL"}
-
-            ,${machineData[i].totalStatus[36] ? `'${machineData[i].totalStatus[36].name}'` : "NULL"}
-            ,${machineData[i].totalStatus[36] ? `${machineData[i].totalStatus[36].duration}` : "NULL"}
-            ,${machineData[i].totalStatus[36] ? `${machineData[i].totalStatus[36].count}` : "NULL"}
-
-            ,${machineData[i].totalStatus[37] ? `'${machineData[i].totalStatus[37].name}'` : "NULL"}
-            ,${machineData[i].totalStatus[37] ? `${machineData[i].totalStatus[37].duration}` : "NULL"}
-            ,${machineData[i].totalStatus[37] ? `${machineData[i].totalStatus[37].count}` : "NULL"}
-
-            ,${machineData[i].totalStatus[38] ? `'${machineData[i].totalStatus[38].name}'` : "NULL"}
-            ,${machineData[i].totalStatus[38] ? `${machineData[i].totalStatus[38].duration}` : "NULL"}
-            ,${machineData[i].totalStatus[38] ? `${machineData[i].totalStatus[38].count}` : "NULL"}
-
-            ,${machineData[i].totalStatus[39] ? `'${machineData[i].totalStatus[39].name}'` : "NULL"}
-            ,${machineData[i].totalStatus[39] ? `${machineData[i].totalStatus[39].duration}` : "NULL"}
-            ,${machineData[i].totalStatus[39] ? `${machineData[i].totalStatus[39].count}` : "NULL"}
-
-            ,${machineData[i].totalStatus[40] ? `'${machineData[i].totalStatus[40].name}'` : "NULL"}
-            ,${machineData[i].totalStatus[40] ? `${machineData[i].totalStatus[40].duration}` : "NULL"}
-            ,${machineData[i].totalStatus[40] ? `${machineData[i].totalStatus[40].count}` : "NULL"}
-
-            ,${machineData[i].totalStatus[41] ? `'${machineData[i].totalStatus[41].name}'` : "NULL"}
-            ,${machineData[i].totalStatus[41] ? `${machineData[i].totalStatus[41].duration}` : "NULL"}
-            ,${machineData[i].totalStatus[41] ? `${machineData[i].totalStatus[41].count}` : "NULL"}
-
-            ,${machineData[i].totalStatus[42] ? `'${machineData[i].totalStatus[42].name}'` : "NULL"}
-            ,${machineData[i].totalStatus[42] ? `${machineData[i].totalStatus[42].duration}` : "NULL"}
-            ,${machineData[i].totalStatus[42] ? `${machineData[i].totalStatus[42].count}` : "NULL"}
-
-            ,${machineData[i].totalStatus[43] ? `'${machineData[i].totalStatus[43].name}'` : "NULL"}
-            ,${machineData[i].totalStatus[43] ? `${machineData[i].totalStatus[43].duration}` : "NULL"}
-            ,${machineData[i].totalStatus[43] ? `${machineData[i].totalStatus[43].count}` : "NULL"}
-
-            ,${machineData[i].totalStatus[44] ? `'${machineData[i].totalStatus[44].name}'` : "NULL"}
-            ,${machineData[i].totalStatus[44] ? `${machineData[i].totalStatus[44].duration}` : "NULL"}
-            ,${machineData[i].totalStatus[44] ? `${machineData[i].totalStatus[44].count}` : "NULL"}
+            ${statusValues}
           )
       `
       );

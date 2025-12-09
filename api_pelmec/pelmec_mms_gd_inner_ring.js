@@ -13,6 +13,8 @@ const masterColor = [
     { name: "WAIT PARTS", color: "#FFFF00" },
     { name: "FULL WORK", color: "#FF3399" },
     { name: "MACHINE ALARM", color: "#FD9803" },
+    { name: "MANUAL DRESS", color: "#0070C0" },
+    { name: "WARM UP", color: "#93CDDD" },
     { name: "DRESS", color: "#B4C000" },
     { name: "M/M", color: "#0070C0" },
     { name: "ADJ", color: "#00FF00" },
@@ -63,7 +65,10 @@ router.post("/select", async (req, res) => {
                 SELECT DISTINCT
                     [shift]
                     ,[mc_type]
-                    ,[mc_type] AS [mc_type_group]
+                    ,CASE
+                        WHEN (CHARINDEX(' ', [mc_type]) - 1) > 1 THEN LEFT([mc_type], CHARINDEX(' ', [mc_type]) - 1)
+                        ELSE [mc_type]
+                    END AS [mc_type_group]
                     ,[mc_no]
                 FROM ${db_direction}
                 WHERE [date] BETWEEN '${startDateQuery}' AND '${endDateQuery}'
@@ -123,7 +128,10 @@ router.post("/status", async (req, res) => {
             ,[date]
             ,[shift]
             ,[mc_type]
-            ,[mc_type] AS [mc_type_group]
+            ,CASE
+                WHEN (CHARINDEX(' ', [mc_type]) - 1) > 1 THEN LEFT([mc_type], CHARINDEX(' ', [mc_type]) - 1)
+                ELSE [mc_type]
+            END AS [mc_type_group]
             ,[mc_no]
             ,[part_no]
             ,ROUND([cycle_time_target] / [ring_type], 2) AS [cycle_time_target]
@@ -340,16 +348,16 @@ router.post("/status", async (req, res) => {
         .map((item_date) => {
           const filteredData = totalStatus.filter((item) => item.date === item_date);
 
-          const totalUptime = filteredData.reduce((sum, curr) => sum + curr.uptime_sec, 0);
-          const totalMonitoring = filteredData.reduce((sum, curr) => sum + curr.monitoring_time, 0);
+          // const totalUptime = filteredData.reduce((sum, curr) => sum + curr.uptime_sec, 0);
+          // const totalMonitoring = filteredData.reduce((sum, curr) => sum + curr.monitoring_time, 0);
 
-          const utili = totalMonitoring > 0 ? parseFloat(((totalUptime / totalMonitoring) * 100).toFixed(1)) : 0;
+          // const utili = totalMonitoring > 0 ? parseFloat(((totalUptime / totalMonitoring) * 100).toFixed(1)) : 0;
 
-          if (utili > 10) {
+          // if (utili > 10) {
             return item_date;
-          } else {
-            return null;
-          }
+          // } else {
+            // return null;
+          // }
         })
         .filter(Boolean);
 
@@ -438,6 +446,10 @@ router.post("/status", async (req, res) => {
         categories: workingDay,
         series: [],
       };
+      let chart_ng = {
+        categories: workingDay,
+        series: [],
+      };
       let chart_operation_rate = {
         categories: workingDay,
         series: [],
@@ -461,6 +473,10 @@ router.post("/status", async (req, res) => {
         categories: workingDay,
         series: [],
       };
+      let chart_ng_group = {
+        categories: workingDay,
+        series: [],
+      };
       let chart_operation_rate_group = {
         categories: workingDay,
         series: [],
@@ -476,7 +492,15 @@ router.post("/status", async (req, res) => {
         categories: month,
         series: [],
       };
+      let chart_ng_month = {
+        categories: month,
+        series: [],
+      };
       let chart_production_month_avg = {
+        categories: month,
+        series: [],
+      };
+      let chart_ng_month_avg = {
         categories: month,
         series: [],
       };
@@ -515,6 +539,14 @@ router.post("/status", async (req, res) => {
         categories: month,
         series: [],
       };
+      let chart_ng_group_month = {
+        categories: month,
+        series: [],
+      };
+      let chart_ng_group_month_avg = {
+        categories: month,
+        series: [],
+      };
       let chart_operation_rate_group_month = {
         categories: month,
         series: [],
@@ -527,6 +559,10 @@ router.post("/status", async (req, res) => {
       // ==============================================
 
       let chart_prod_machine = {
+        categories: mc_no,
+        series: [],
+      };
+      let chart_ng_machine = {
         categories: mc_no,
         series: [],
       };
@@ -570,6 +606,24 @@ router.post("/status", async (req, res) => {
           type: "line",
           color: "red",
           data: workingDay.map((item_date) => totalStatus.filter((item) => item.date === item_date).reduce((sum, curr) => sum + curr.prod_target, 0)),
+        },
+      ];
+
+      chart_ng.series = [
+        ...mc_type.map((item_mc_type) => ({
+          name: item_mc_type,
+          type: "bar",
+          stack: "total",
+          data: workingDay.map((item_date) =>
+            totalStatus.filter((item) => item.date === item_date && item.mc_type === item_mc_type).reduce((sum, curr) => sum + curr.prod_ng, 0)
+          ),
+        })),
+        {
+          name: "Total",
+          type: "scatter",
+          symbolSize: 0,
+          color: "black",
+          data: workingDay.map((item_date) => totalStatus.filter((item) => item.date === item_date).reduce((sum, curr) => sum + curr.prod_ng, 0)),
         },
       ];
 
@@ -710,6 +764,24 @@ router.post("/status", async (req, res) => {
         },
       ];
 
+      chart_ng_month.series = [
+        ...mc_type.map((item_mc_type) => ({
+          name: item_mc_type,
+          type: "bar",
+          stack: "total",
+          data: month.map((item_month) =>
+            totalStatus.filter((item) => item.month === item_month && item.mc_type === item_mc_type).reduce((sum, curr) => sum + curr.prod_ng, 0)
+          ),
+        })),
+        {
+          name: "Total",
+          type: "scatter",
+          symbolSize: 0,
+          color: "black",
+          data: month.map((item_month) => totalStatus.filter((item) => item.month === item_month).reduce((sum, curr) => sum + curr.prod_ng, 0)),
+        },
+      ];
+
       chart_production_month_avg.series = [
         ...mc_type.map((item_mc_type) => ({
           name: item_mc_type,
@@ -742,6 +814,32 @@ router.post("/status", async (req, res) => {
             const filtered = totalStatus.filter((item) => item.month === item_month);
             const countDate = [...new Set(filtered.map((item) => item.date))].length;
             const total = filtered.reduce((sum, curr) => sum + curr.prod_target, 0);
+            return filtered.length > 0 ? parseFloat((total / countDate).toFixed(1)) : 0;
+          }),
+        },
+      ];
+
+      chart_ng_month_avg.series = [
+        ...mc_type.map((item_mc_type) => ({
+          name: item_mc_type,
+          type: "bar",
+          stack: "total",
+          data: month.map((item_month) => {
+            const filtered = totalStatus.filter((item) => item.month === item_month && item.mc_type === item_mc_type);
+            const countDate = [...new Set(filtered.map((item) => item.date))].length;
+            const total = filtered.reduce((sum, curr) => sum + curr.prod_ng, 0);
+            return filtered.length > 0 ? parseFloat((total / countDate).toFixed(1)) : 0;
+          }),
+        })),
+        {
+          name: "Total",
+          type: "scatter",
+          symbolSize: 0,
+          color: "black",
+          data: month.map((item_month) => {
+            const filtered = totalStatus.filter((item) => item.month === item_month);
+            const countDate = [...new Set(filtered.map((item) => item.date))].length;
+            const total = filtered.reduce((sum, curr) => sum + curr.prod_ng, 0);
             return filtered.length > 0 ? parseFloat((total / countDate).toFixed(1)) : 0;
           }),
         },
@@ -929,6 +1027,26 @@ router.post("/status", async (req, res) => {
         },
       ];
 
+      chart_ng_group.series = [
+        ...mc_type_group.map((item_mc_type_group) => ({
+          name: item_mc_type_group,
+          type: "bar",
+          stack: "total",
+          data: workingDay.map((item_date) =>
+            totalStatus
+              .filter((item) => item.date === item_date && item.mc_type_group === item_mc_type_group)
+              .reduce((sum, curr) => sum + curr.prod_ng, 0)
+          ),
+        })),
+        {
+          name: "Total",
+          type: "scatter",
+          symbolSize: 0,
+          color: "black",
+          data: workingDay.map((item_date) => totalStatus.filter((item) => item.date === item_date).reduce((sum, curr) => sum + curr.prod_ng, 0)),
+        },
+      ];
+
       chart_operation_rate_group.series = [
         ...mc_type_group.map((item_mc_type_group) => ({
           name: item_mc_type_group,
@@ -1027,6 +1145,26 @@ router.post("/status", async (req, res) => {
         },
       ];
 
+      chart_ng_group_month.series = [
+        ...mc_type_group.map((item_mc_type_group) => ({
+          name: item_mc_type_group,
+          type: "bar",
+          stack: "total",
+          data: month.map((item_month) =>
+            totalStatus
+              .filter((item) => item.month === item_month && item.mc_type_group === item_mc_type_group)
+              .reduce((sum, curr) => sum + curr.prod_ng, 0)
+          ),
+        })),
+        {
+          name: "Total",
+          type: "scatter",
+          symbolSize: 0,
+          color: "black",
+          data: month.map((item_month) => totalStatus.filter((item) => item.month === item_month).reduce((sum, curr) => sum + curr.prod_ng, 0)),
+        },
+      ];
+
       chart_production_group_month_avg.series = [
         ...mc_type_group.map((item_mc_type_group) => ({
           name: item_mc_type_group,
@@ -1059,6 +1197,32 @@ router.post("/status", async (req, res) => {
             const filtered = totalStatus.filter((item) => item.month === item_month);
             const countDate = [...new Set(filtered.map((item) => item.date))].length;
             const total = filtered.reduce((sum, curr) => sum + curr.prod_target, 0);
+            return filtered.length > 0 ? parseFloat((total / countDate).toFixed(1)) : 0;
+          }),
+        },
+      ];
+
+      chart_ng_group_month_avg.series = [
+        ...mc_type_group.map((item_mc_type_group) => ({
+          name: item_mc_type_group,
+          type: "bar",
+          stack: "total",
+          data: month.map((item_month) => {
+            const filtered = totalStatus.filter((item) => item.month === item_month && item.mc_type_group === item_mc_type_group);
+            const countDate = [...new Set(filtered.map((item) => item.date))].length;
+            const total = filtered.reduce((sum, curr) => sum + curr.prod_ng, 0);
+            return filtered.length > 0 ? parseFloat((total / countDate).toFixed(1)) : 0;
+          }),
+        })),
+        {
+          name: "Total",
+          type: "scatter",
+          symbolSize: 0,
+          color: "black",
+          data: month.map((item_month) => {
+            const filtered = totalStatus.filter((item) => item.month === item_month);
+            const countDate = [...new Set(filtered.map((item) => item.date))].length;
+            const total = filtered.reduce((sum, curr) => sum + curr.prod_ng, 0);
             return filtered.length > 0 ? parseFloat((total / countDate).toFixed(1)) : 0;
           }),
         },
@@ -1138,6 +1302,10 @@ router.post("/status", async (req, res) => {
 
       chart_prod_machine.series = mc_no.map((item_mc) =>
         totalStatus.filter((item) => item.mc_no === item_mc).reduce((sum, curr) => sum + curr.prod_result, 0)
+      );
+
+      chart_ng_machine.series = mc_no.map((item_mc) =>
+        totalStatus.filter((item) => item.mc_no === item_mc).reduce((sum, curr) => sum + curr.prod_ng, 0)
       );
 
       chart_opn_machine.series = mc_no.map((item_mc) => {
@@ -1228,13 +1396,16 @@ router.post("/status", async (req, res) => {
         success: true,
         maxRegistered,
         chart_production,
+        chart_ng,
         chart_operation_rate,
         chart_cycle_time,
         chart_alarm_time,
         chart_alarm_time_lose,
 
         chart_production_month,
+        chart_ng_month,
         chart_production_month_avg,
+        chart_ng_month_avg,
         chart_operation_rate_month,
         chart_cycle_time_month,
         chart_alarm_time_month,
@@ -1243,15 +1414,19 @@ router.post("/status", async (req, res) => {
         chart_alarm_time_month_lose_avg,
 
         chart_production_group,
+        chart_ng_group,
         chart_operation_rate_group,
         chart_cycle_time_group,
 
         chart_production_group_month,
+        chart_ng_group_month,
         chart_production_group_month_avg,
+        chart_ng_group_month_avg,
         chart_operation_rate_group_month,
         chart_cycle_time_group_month,
 
         chart_prod_machine,
+        chart_ng_machine,
         chart_opn_machine,
         chart_cycletime_machine,
         chart_alarm_time_machine,

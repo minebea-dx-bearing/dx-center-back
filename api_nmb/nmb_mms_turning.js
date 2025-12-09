@@ -7,27 +7,36 @@ const currentIP = require("../util/check_current_ip");
 const get_data_mms = require("../util/get_data_mms");
 
 const masterColor = [
-  { name: "RUNNING", color: "#00B050" },
-  { name: "SPAPR 1", color: "#0070C0" },
-  { name: "SPARE 2", color: "#00FF00" },
-  { name: "STOP (change tool)", color: "#FF0000" },
-  { name: "SPARE 3", color: "#FD9803" },
-  { name: "WAIT TOOL", color: "#FFC000" },
-  { name: "MAINTENANCE", color: "#FFFF00" },
-  { name: "SET UP", color: "#FF3399" },
-  { name: "Reserved 5", color: "#E46C0A" },
-  { name: "Reserved 4", color: "#93CDDD" },
-  { name: "WAIT QC/QA", color: "#31859C" },
-  { name: "ADJUST", color: "#ACA2C7" },
-  { name: "Reserved 1", color: "#8064A2" },
-  { name: "other", color: "#595959" },
-  { name: "No signal", color: "#A6A6A6" },
-  { name: "SIGNAL LIGHT ERROR", color: "#D9D9D9" },
-  { name: "Break time", color: "#0000FF" },
+  { no: 1, name: "RUNNING", color: "#00b005" },
+  { no: 2, name: "CHANGE BIT", color: "#FFF700" },
+  { no: 3, name: "ORANGE SHEET", color: "#FD9803" },
+  { no: 4, name: "STOP", color: "#FF0000" },
+  { no: 5, name: "WAIT FOR SETTER", color: "#B9E6D1" },
+  { no: 6, name: "WAIT FOR NEW BAR", color: "#0742F9" },
+  { no: 7, name: "MAINTENANCE", color: "#8945DC" },
+  { no: 8, name: "SET UP", color: "#FF3399" },
+  { no: 9, name: "CLEAR CHIP", color: "#448FC5" },
+  { no: 10, name: "PREVENTIVE", color: "#00FF00" },
+  { no: 11, name: "WAIT QC/QA", color: "#93CDDD" },
+  { no: 12, name: "ADJUST DIA", color: "#04F7FB" },
+  { no: 13, name: "TROUBLE SHOOT", color: "#034A7D" },
+  { no: 14, name: "Other", color: "#3f3f3f" },
+  { no: 15, name: "No signal", color: "#7f7f7f" },
+  { no: 16, name: "Signal Lamp error", color: "#bfbfbf" },
+  { no: 17, name: "BREAK TIME", color: "#0000FF" },
+  { no: 18, name: "PLAN STOP", color: "#000000" },
+  { no: 19, name: "WAIT BIT", color: "#CB3680" },
+  { no: 20, name: "WAIT GQA", color: "#CB0505" },
+  { no: 21, name: "WAIT BAR MATERIAL", color: "#AFFF79" },
+  { no: 22, name: "DROP PART", color: "#8C9FDC" },
+  { no: 23, name: "WIDTH SMALL", color: "#D44E07" },
+  { no: 24, name: "DRILL OUT ALARM", color: "#06BBA8" },
+  { no: 25, name: "O/H BRG", color: "#F5DC9B" },
+  { no: 26, name: "AUTO FEED BAR ADJ", color: "#F9ABC0" },
 ];
 
-const url_mms = "http://10.120.115.29:8080";
-const db_direction = "[mms].[dbo].[pelmec_cold_forming]";
+const url_mms = "http://10.122.16.41:8080";
+const db_direction = "[mms].[dbo].[nmb_turning]";
 
 let job = schedule.scheduleJob("7,17,27,37,47,57 * * * *", async () => {
   if (currentIP.includes("10.120.10.140")) {
@@ -59,14 +68,17 @@ router.post("/select", async (req, res) => {
 
     let resultSelect = await dbms.query(
       `
-                SELECT DISTINCT
-                    [shift]
-                    ,[mc_type]
-                    ,[mc_type] AS [mc_type_group]
-                    ,[mc_no]
-                FROM ${db_direction}
-                WHERE [date] BETWEEN '${startDateQuery}' AND '${endDateQuery}'
-            `
+          SELECT DISTINCT
+              [shift]
+              ,[mc_type]
+              ,CASE
+                  WHEN (CHARINDEX(' ', [mc_type]) - 1) > 1 THEN LEFT([mc_type], CHARINDEX(' ', [mc_type]) - 1)
+                  ELSE [mc_type]
+              END AS [mc_type_group]
+              ,[mc_no]
+          FROM ${db_direction}
+          WHERE [date] BETWEEN '${startDateQuery}' AND '${endDateQuery}'
+      `
     );
     if (resultSelect[1] > 0) {
       res.json({
@@ -122,7 +134,10 @@ router.post("/status", async (req, res) => {
             ,[date]
             ,[shift]
             ,[mc_type]
-            ,[mc_type] AS [mc_type_group]
+            ,CASE
+                WHEN (CHARINDEX(' ', [mc_type]) - 1) > 1 THEN LEFT([mc_type], CHARINDEX(' ', [mc_type]) - 1)
+                ELSE [mc_type]
+            END AS [mc_type_group]
             ,[mc_no]
             ,[part_no]
             ,ROUND([cycle_time_target] / [ring_type], 2) AS [cycle_time_target]

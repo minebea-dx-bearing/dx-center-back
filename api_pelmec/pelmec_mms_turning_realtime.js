@@ -3,7 +3,7 @@ const express = require("express");
 const moment = require("moment");
 const router = express.Router();
 
-const url_mms = "http://10.120.115.7:8080";
+const url_mms = "http://10.120.115.8:8080";
 
 const lightenColor = (hex, percent) => {
     let num = parseInt(hex.replace("#", ""), 16);
