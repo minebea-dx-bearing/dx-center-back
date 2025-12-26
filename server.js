@@ -3,6 +3,7 @@ const express = require("express");
 const app = express();
 const bodyParser = require("body-parser");
 const cors = require("cors");
+const router = require("./api/api_user");
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
@@ -60,6 +61,11 @@ app.use("/pelmec_mms_gd_inner_ring", require("./api_pelmec/pelmec_mms_gd_inner_r
 app.use("/pelmec_mms_gd_inner_ring_realtime", require("./api_pelmec/pelmec_mms_gd_inner_ring_realtime"));
 app.use("/pelmec_mms_press_shield", require("./api_pelmec/pelmec_mms_press_shield"));
 app.use("/pelmec_mms_auto_press_realtime", require("./api_pelmec/pelmec_mms_auto_press_realtime"));
+
+//LOG-IN
+app.use("/", router);
+app.use("/user", require("./api/api_user"));
+app.use("/jobrequest", require("./api/api_JobRequest"));
 
 app.listen(process.env.PORT, () => {
     console.log(`Server is running on port ${process.env.PORT}`);
