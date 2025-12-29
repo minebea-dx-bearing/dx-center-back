@@ -177,11 +177,7 @@ router.post("/filterWork", async (req, res) => {
       SELECT ROW_NUMBER() OVER(ORDER BY r.[DocReq]) AS [Row]
       , FORMAT(r.[createdAt], 'HH:mm') AS [Cut_RecTime]
       , FORMAT(r.[ReqDate], 'yyyy-MM') AS [YearMonth]
-      , IIF([Status] = 'Finished', 'badge text-bg-success', 
-        IIF([Status] = 'On-Going', 'badge text-bg-primary',
-        IIF([Status] = 'Waiting', 'badge text-bg-warning',
-        IIF([Status] = 'Cancelled', 'badge text-bg-danger', '')))
-      ) AS [badge_col]
+      , r.[Status]
       , r.* FROM [DX_Center].[dbo].[JobRequests] r
       ${whereClause}
       ORDER BY r.[DocReq]`;
