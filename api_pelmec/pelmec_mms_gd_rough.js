@@ -1,4 +1,3 @@
-const axios = require("axios");
 const express = require("express");
 const moment = require("moment");
 const router = express.Router();
@@ -8,53 +7,42 @@ const currentIP = require("../util/check_current_ip");
 const get_data_mms = require("../util/get_data_mms");
 
 const masterColor = [
-    { name: "RUNNING", color: "#00b005" },
-    { name: "STOP", color: "#FF0000" },
-    { name: "WAIT PARTS", color: "#FFFF00" },
-    { name: "FULL WORK", color: "#FF3399" },
-    { name: "MACHINE ALARM", color: "#FD9803" },
-    { name: "MANUAL DRESS", color: "#0070C0" },
-    { name: "WARM UP", color: "#93CDDD" },
-    { name: "DRESS", color: "#B4C000" },
-    { name: "M/M", color: "#0070C0" },
-    { name: "ADJ", color: "#00FF00" },
-    { name: "SET UP", color: "#E46C0A" },
-    { name: "TOOL CHANGE", color: "#93CDDD" },
-    { name: "Registration3", color: "#31859C" },
-    { name: "Registration4", color: "#ACA2C7" },
-    { name: "Registration5", color: "#8064A2" },
-    { name: "Other", color: "#595959" },
-    { name: "No signal", color: "#A6A6A6" },
-    { name: "Signal Lamp error", color: "#D9D9D9" },
-    { name: "Break time", color: "#0000FF" },
+  { name: "RUNNING", color: "#00B050" },
+  { name: "DRESS", color: "#00FF00" },
+  { name: "STOP", color: "#FF0000" },
+  { name: "other", color: "#595959" },
+  { name: "No signal", color: "#A6A6A6" },
+  { name: "Signal Lamp error", color: "#D9D9D9" },
+  { name: "Break time", color: "#0000FF" },
 ];
 
-const url_mms = "http://10.120.116.39:8080";
-const db_direction = "[mms].[dbo].[pelmec_2nd_inner_ring]";
+const url_mms = "http://10.120.115.29:8080";
+const db_direction = "[mms].[dbo].[pelmec_cold_forming]";
 
-let job = schedule.scheduleJob("7,17,27,37,47,57 * * * *", async () => {
-  if (currentIP.includes("10.120.10.140")) {
-    await get_data_mms(url_mms, dbms, db_direction);
-    console.log(`Running task update data MMS : ${moment().format("YYYY-MM-DD HH:mm:ss")}`);
-  }
-});
+// comment script ซ้ำกับ pelmec_mms_cold_forming.js เพราะ url mms เดียวกัน
+// let job = schedule.scheduleJob("7,17,27,37,47,57 * * * *", async () => {
+//   if (currentIP.includes("10.120.10.140")) {
+//     await get_data_mms(url_mms, dbms, db_direction);
+//     console.log(`Running task update data MMS : ${moment().format("YYYY-MM-DD HH:mm:ss")}`);
+//   }
+// });
 
-router.get("/get_data_mms", async (req, res) => {
-  try {
-    const getDataMms = await get_data_mms(url_mms, dbms, db_direction);
-    res.json({
-      success: true,
-      message: "Update database finish",
-      getDataMms,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Can't get data MMS",
-      error: error.message,
-    });
-  }
-});
+// router.get("/get_data_mms", async (req, res) => {
+//   try {
+//     const getDataMms = await get_data_mms(url_mms, dbms, db_direction);
+//     res.json({
+//       success: true,
+//       message: "Update database finish",
+//       getDataMms,
+//     });
+//   } catch (error) {
+//     res.status(500).json({
+//       success: false,
+//       message: "Can't get data MMS",
+//       error: error.message,
+//     });
+//   }
+// });
 
 router.post("/select", async (req, res) => {
   try {
@@ -62,17 +50,14 @@ router.post("/select", async (req, res) => {
 
     let resultSelect = await dbms.query(
       `
-                SELECT DISTINCT
-                    [shift]
-                    ,[mc_type]
-                    ,CASE
-                        WHEN (CHARINDEX(' ', [mc_type]) - 1) > 1 THEN LEFT([mc_type], CHARINDEX(' ', [mc_type]) - 1)
-                        ELSE [mc_type]
-                    END AS [mc_type_group]
-                    ,[mc_no]
-                FROM ${db_direction}
-                WHERE [date] BETWEEN '${startDateQuery}' AND '${endDateQuery}' AND [mc_no] LIKE 'IL%'
-            `
+          SELECT DISTINCT
+              [shift]
+              ,[mc_type]
+              ,[mc_type] AS [mc_type_group]
+              ,[mc_no]
+          FROM ${db_direction}
+          WHERE [date] BETWEEN '${startDateQuery}' AND '${endDateQuery}' AND [mc_no] NOT LIKE 'CF%'
+      `
     );
     if (resultSelect[1] > 0) {
       res.json({
@@ -128,10 +113,7 @@ router.post("/status", async (req, res) => {
             ,[date]
             ,[shift]
             ,[mc_type]
-            ,CASE
-                WHEN (CHARINDEX(' ', [mc_type]) - 1) > 1 THEN LEFT([mc_type], CHARINDEX(' ', [mc_type]) - 1)
-                ELSE [mc_type]
-            END AS [mc_type_group]
+            ,[mc_type] AS [mc_type_group]
             ,[mc_no]
             ,[part_no]
             ,ROUND([cycle_time_target] / [ring_type], 2) AS [cycle_time_target]
@@ -277,7 +259,7 @@ router.post("/status", async (req, res) => {
             ,[duration_44]
             ,[count_44]
         FROM ${db_direction}
-        WHERE [date] BETWEEN '${startDateQuery}' AND '${endDateQuery}' AND [mc_no] LIKE 'IL%'
+        WHERE [date] BETWEEN '${startDateQuery}' AND '${endDateQuery}' AND [mc_no] NOT LIKE 'CF%'
         ORDER BY
             [date]
             ,[mc_type]
@@ -331,9 +313,13 @@ router.post("/status", async (req, res) => {
         totalStatus = totalStatus.filter((item) => machineNoQuery.includes(item.mc_no));
       }
 
-      const maxRegistered = moment(totalStatus.reduce((max, curr) => {
-        return curr.registered > max ? curr.registered : max;
-      }, totalStatus[0].registered)).utc().format("YYYY-MM-DD HH:mm:ss");
+      const maxRegistered = moment(
+        totalStatus.reduce((max, curr) => {
+          return curr.registered > max ? curr.registered : max;
+        }, totalStatus[0].registered)
+      )
+        .utc()
+        .format("YYYY-MM-DD HH:mm:ss");
 
       // เก็บ master item ต่างๆ
       let date = [...new Set(totalStatus.map((item) => item.date))];
@@ -354,9 +340,9 @@ router.post("/status", async (req, res) => {
           // const utili = totalMonitoring > 0 ? parseFloat(((totalUptime / totalMonitoring) * 100).toFixed(1)) : 0;
 
           // if (utili > 10) {
-            return item_date;
+          return item_date;
           // } else {
-            // return null;
+          // return null;
           // }
         })
         .filter(Boolean);
@@ -424,7 +410,7 @@ router.post("/status", async (req, res) => {
       tableTotal_daily = tableTotal_daily.map((item) => {
         return {
           ...item,
-          yield: Number(((item.prod_result - item.prod_ng) / item.prod_result * 100).toFixed(2)),
+          yield: Number((((item.prod_result - item.prod_ng) / item.prod_result) * 100).toFixed(2)),
           cycle_time_target_sumReciprocal: parseFloat(item.cycle_time_target_sumReciprocal.toFixed(2)),
           cycle_time_actual_sumReciprocal: parseFloat(item.cycle_time_actual_sumReciprocal.toFixed(2)),
           cycle_time_target: parseFloat((item.count / item.cycle_time_target_sumReciprocal).toFixed(2)),
@@ -865,7 +851,9 @@ router.post("/status", async (req, res) => {
           type: "line",
           color: "black",
           data: month.map((item_month) => {
-            const filteredData = tableTotal_daily.filter((item) => item.month === item_month && item.monitoring_time * percentQuery < item.uptime_sec);
+            const filteredData = tableTotal_daily.filter(
+              (item) => item.month === item_month && item.monitoring_time * percentQuery < item.uptime_sec
+            );
 
             const totalOpn = filteredData.reduce((sum, curr) => sum + curr.opn_rate, 0);
             const n = filteredData.length;
@@ -1234,7 +1222,8 @@ router.post("/status", async (req, res) => {
           type: "bar",
           data: month.map((item_month) => {
             const filteredData = tableTotal_daily.filter(
-              (item) => item.month === item_month && item.mc_type_group === item_mc_type_group && item.monitoring_time * percentQuery < item.uptime_sec
+              (item) =>
+                item.month === item_month && item.mc_type_group === item_mc_type_group && item.monitoring_time * percentQuery < item.uptime_sec
             );
 
             const totalOpn = filteredData.reduce((sum, curr) => sum + curr.opn_rate, 0);
@@ -1248,7 +1237,9 @@ router.post("/status", async (req, res) => {
           type: "line",
           color: "black",
           data: month.map((item_month) => {
-            const filteredData = tableTotal_daily.filter((item) => item.month === item_month && item.monitoring_time * percentQuery < item.uptime_sec);
+            const filteredData = tableTotal_daily.filter(
+              (item) => item.month === item_month && item.monitoring_time * percentQuery < item.uptime_sec
+            );
 
             const totalOpn = filteredData.reduce((sum, curr) => sum + curr.opn_rate, 0);
             const n = filteredData.length;
@@ -1380,7 +1371,7 @@ router.post("/status", async (req, res) => {
           prod_target: item.prod_target,
           prod_result: item.prod_result,
           prod_ng: item.prod_ng,
-          yield: Number(((item.prod_result - item.prod_ng) / item.prod_result * 100).toFixed(2)),
+          yield: Number((((item.prod_result - item.prod_ng) / item.prod_result) * 100).toFixed(2)),
           prod_diff: item.prod_result - item.prod_target,
           cycle_time_target: item.cycle_time_target,
           cycle_time_actual: item.cycle_time_actual,

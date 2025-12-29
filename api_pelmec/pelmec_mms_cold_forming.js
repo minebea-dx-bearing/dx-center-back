@@ -59,14 +59,14 @@ router.post("/select", async (req, res) => {
 
     let resultSelect = await dbms.query(
       `
-                SELECT DISTINCT
-                    [shift]
-                    ,[mc_type]
-                    ,[mc_type] AS [mc_type_group]
-                    ,[mc_no]
-                FROM ${db_direction}
-                WHERE [date] BETWEEN '${startDateQuery}' AND '${endDateQuery}'
-            `
+          SELECT DISTINCT
+              [shift]
+              ,[mc_type]
+              ,[mc_type] AS [mc_type_group]
+              ,[mc_no]
+          FROM ${db_direction}
+          WHERE [date] BETWEEN '${startDateQuery}' AND '${endDateQuery}' AND [mc_no] LIKE 'CF%'
+      `
     );
     if (resultSelect[1] > 0) {
       res.json({
@@ -268,7 +268,7 @@ router.post("/status", async (req, res) => {
             ,[duration_44]
             ,[count_44]
         FROM ${db_direction}
-        WHERE [date] BETWEEN '${startDateQuery}' AND '${endDateQuery}'
+        WHERE [date] BETWEEN '${startDateQuery}' AND '${endDateQuery}' AND [mc_no] LIKE 'CF%'
         ORDER BY
             [date]
             ,[mc_type]

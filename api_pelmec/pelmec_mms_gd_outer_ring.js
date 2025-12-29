@@ -15,22 +15,14 @@ const masterColor = [
     { name: "MACHINE ALARM", color: "#FD9803" },
     { name: "MANUAL DRESS", color: "#0070C0" },
     { name: "WARM UP", color: "#93CDDD" },
-    { name: "DRESS", color: "#B4C000" },
-    { name: "M/M", color: "#0070C0" },
-    { name: "ADJ", color: "#00FF00" },
-    { name: "SET UP", color: "#E46C0A" },
-    { name: "TOOL CHANGE", color: "#93CDDD" },
-    { name: "Registration3", color: "#31859C" },
-    { name: "Registration4", color: "#ACA2C7" },
-    { name: "Registration5", color: "#8064A2" },
     { name: "Other", color: "#595959" },
     { name: "No signal", color: "#A6A6A6" },
     { name: "Signal Lamp error", color: "#D9D9D9" },
     { name: "Break time", color: "#0000FF" },
 ];
 
-const url_mms = "http://10.120.116.39:8080";
-const db_direction = "[mms].[dbo].[pelmec_2nd_inner_ring]";
+const url_mms = "http://10.120.116.26:8080";
+const db_direction = "[mms].[dbo].[pelmec_2nd_outer_ring]";
 
 let job = schedule.scheduleJob("7,17,27,37,47,57 * * * *", async () => {
   if (currentIP.includes("10.120.10.140")) {
@@ -71,7 +63,7 @@ router.post("/select", async (req, res) => {
                     END AS [mc_type_group]
                     ,[mc_no]
                 FROM ${db_direction}
-                WHERE [date] BETWEEN '${startDateQuery}' AND '${endDateQuery}' AND [mc_no] LIKE 'IL%'
+                WHERE [date] BETWEEN '${startDateQuery}' AND '${endDateQuery}'
             `
     );
     if (resultSelect[1] > 0) {
@@ -277,7 +269,7 @@ router.post("/status", async (req, res) => {
             ,[duration_44]
             ,[count_44]
         FROM ${db_direction}
-        WHERE [date] BETWEEN '${startDateQuery}' AND '${endDateQuery}' AND [mc_no] LIKE 'IL%'
+        WHERE [date] BETWEEN '${startDateQuery}' AND '${endDateQuery}'
         ORDER BY
             [date]
             ,[mc_type]

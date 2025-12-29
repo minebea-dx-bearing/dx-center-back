@@ -55,9 +55,12 @@ app.use("/nmb/assy/avs-realtime", require("./api_nmb/nmb_assy_avs_realtime"));
 app.use("/pelmec_mms_turning", require("./api_pelmec/pelmec_mms_turning"));
 app.use("/pelmec_mms_turning_realtime", require("./api_pelmec/pelmec_mms_turning_realtime"));
 app.use("/pelmec_mms_cold_forming", require("./api_pelmec/pelmec_mms_cold_forming"));
+app.use("/pelmec_mms_gd_rough", require("./api_pelmec/pelmec_mms_gd_rough"));
+app.use("/pelmec_mms_gd_1st", require("./api_pelmec/pelmec_mms_gd_1st"));
 app.use("/pelmec_mms_cold_forming_realtime", require("./api_pelmec/pelmec_mms_cold_forming_realtime"));
 app.use("/pelmec_mms_gd_inner_ring", require("./api_pelmec/pelmec_mms_gd_inner_ring"));
 app.use("/pelmec_mms_gd_inner_ring_realtime", require("./api_pelmec/pelmec_mms_gd_inner_ring_realtime"));
+app.use("/pelmec_mms_gd_outer_ring", require("./api_pelmec/pelmec_mms_gd_outer_ring"));
 app.use("/pelmec_mms_press_shield", require("./api_pelmec/pelmec_mms_press_shield"));
 app.use("/pelmec_mms_auto_press_realtime", require("./api_pelmec/pelmec_mms_auto_press_realtime"));
 
