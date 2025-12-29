@@ -9,6 +9,7 @@ const get_data_mms = require("../util/get_data_mms");
 
 const masterColor = [
     { name: "RUNNING", color: "#00b005" },
+    { name: "Working", color: "#00b005" },
     { name: "STOP", color: "#FF0000" },
     { name: "WAIT PARTS", color: "#FFFF00" },
     { name: "FULL WORK", color: "#FF3399" },
@@ -32,29 +33,30 @@ const masterColor = [
 const url_mms = "http://10.120.116.39:8080";
 const db_direction = "[mms].[dbo].[pelmec_2nd_inner_ring]";
 
-let job = schedule.scheduleJob("7,17,27,37,47,57 * * * *", async () => {
-  if (currentIP.includes("10.120.10.140")) {
-    await get_data_mms(url_mms, dbms, db_direction);
-    console.log(`Running task update data MMS : ${moment().format("YYYY-MM-DD HH:mm:ss")}`);
-  }
-});
+// comment script ซ้ำกับ pelmec_mms_gd_inner_ring.js เพราะ url mms เดียวกัน
+// let job = schedule.scheduleJob("7,17,27,37,47,57 * * * *", async () => {
+//   if (currentIP.includes("10.120.10.140")) {
+//     await get_data_mms(url_mms, dbms, db_direction);
+//     console.log(`Running task update data MMS : ${moment().format("YYYY-MM-DD HH:mm:ss")}`);
+//   }
+// });
 
-router.get("/get_data_mms", async (req, res) => {
-  try {
-    const getDataMms = await get_data_mms(url_mms, dbms, db_direction);
-    res.json({
-      success: true,
-      message: "Update database finish",
-      getDataMms,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Can't get data MMS",
-      error: error.message,
-    });
-  }
-});
+// router.get("/get_data_mms", async (req, res) => {
+//   try {
+//     const getDataMms = await get_data_mms(url_mms, dbms, db_direction);
+//     res.json({
+//       success: true,
+//       message: "Update database finish",
+//       getDataMms,
+//     });
+//   } catch (error) {
+//     res.status(500).json({
+//       success: false,
+//       message: "Can't get data MMS",
+//       error: error.message,
+//     });
+//   }
+// });
 
 router.post("/select", async (req, res) => {
   try {
@@ -71,7 +73,7 @@ router.post("/select", async (req, res) => {
                     END AS [mc_type_group]
                     ,[mc_no]
                 FROM ${db_direction}
-                WHERE [date] BETWEEN '${startDateQuery}' AND '${endDateQuery}' AND [mc_no] LIKE 'IL%'
+                WHERE [date] BETWEEN '${startDateQuery}' AND '${endDateQuery}' AND [mc_no] NOT LIKE 'IL%'
             `
     );
     if (resultSelect[1] > 0) {
@@ -277,7 +279,7 @@ router.post("/status", async (req, res) => {
             ,[duration_44]
             ,[count_44]
         FROM ${db_direction}
-        WHERE [date] BETWEEN '${startDateQuery}' AND '${endDateQuery}' AND [mc_no] LIKE 'IL%'
+        WHERE [date] BETWEEN '${startDateQuery}' AND '${endDateQuery}' AND [mc_no] NOT LIKE 'IL%'
         ORDER BY
             [date]
             ,[mc_type]
