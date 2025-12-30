@@ -12,54 +12,64 @@ const masterColor = [
   { name: "WORN STONE", color: "#268149" },
   { name: "WAIT SETTER", color: "#B9E6D1" },
   { name: "WAIT OPT", color: "#C4CEB2" },
-  { name: "WAIT PARTS 1 (URGENT)", color: "#FFC000" },
+  { name: "WAIT PARTS  1 (URGENT)", color: "#FFC000" },
   { name: "MAINTENANCE", color: "#9800FF" },
   { name: "WAIT PARTS 2 (PC STOP)", color: "#000000" },
   { name: "SET UP", color: "#EE6CF5" },
   { name: "CHECK ROUNDNESS/ROUGHNESS", color: "#93CDDD" },
+  { name: "Check Roundness/Roughness", color: "#93CDDD" },
   { name: "WAIT QA", color: "#FFFF00" },
   { name: "WAIT GQA", color: "#CB0505" },
   { name: "WAIT PART FEEDER", color: "#AFFF79" },
-  { name: "Other", color: "#3f3f3f" },
-  { name: "No signal", color: "#7f7f7f" },
-  { name: "Signal Lamp error", color: "#bfbfbf" },
-  { name: "WAIT PARTS 2 (PC STOP)", color: "#0000FF" },
-  { name: "ADJUST DIA", color: "#04F7FB" },
+  { name: "WAIT Parts feeder", color: "#AFFF79" },
+  { name: "Other", color: "#595959" },
+  { name: "No signal", color: "#A6A6A6" },
+  { name: "Signal Lamp error", color: "#D9D9D9" },
+  { name: "ADJUST REMOVEMENT", color: "#04F7FB" },
+  { name: "ADJ Dia", color: "#04F7FB" },
   { name: "ADJUST VISUAL", color: "#03548E" },
+  { name: "ADJ visual", color: "#03548E" },
   { name: "ADJUST ROUNDNESS/ROUGHNESS", color: "#8C9FDC" },
-  { name: "IR M/C ALARM", color: "#F94B01" },
-  { name: "RUNNING(NO WORK)", color: "#06BBA8" },
+  { name: "ADJ Roundness/Roughness", color: "#8C9FDC" },
+  { name: "HYD ALARM", color: "#F94B01" },
+  { name: "IR M/C Alarm", color: "#F94B01" },
+  { name: "NO WORK", color: "#06BBA8" },
+  { name: "RUNNING (No work)", color: "#06BBA8" },
   { name: "RUNNING(FULL WORK)", color: "#0494FB" },
+  { name: "MISS LOAD", color: "#F5DC9B" },
   { name: "DRESS STONE", color: "#F5DC9B" },
-  { name: "SPIN OUT ALARM", color: "#31859C" },
+  { name: "FULL WORK (STOP)", color: "#0494FB" },
+  { name: "SPIN OUT Alarm", color: "#31859C" },
+  // { name: "BREAK TIME", color: "#0000FF" },
 ];
 
-const url_mms = "http://10.122.11.17:8080";
-const db_direction = "[mms].[dbo].[nmb_ir]";
+const url_mms = "http://10.122.11.25:8080";
+const db_direction_ir = "[mms].[dbo].[nmb_ir]";
+const db_direction_sf = "[mms].[dbo].[nmb_sf]";
 
-let job = schedule.scheduleJob("7,17,27,37,47,57 * * * *", async () => {
-  if (currentIP.includes("10.120.10.140")) {
-    await get_data_mms(url_mms, dbms, db_direction);
-    console.log(`Running task update data MMS : ${moment().format("YYYY-MM-DD HH:mm:ss")}`);
-  }
-});
+// let job = schedule.scheduleJob("7,17,27,37,47,57 * * * *", async () => {
+//   if (currentIP.includes("10.120.10.140")) {
+//     await get_data_mms(url_mms, dbms, db_direction);
+//     console.log(`Running task update data MMS : ${moment().format("YYYY-MM-DD HH:mm:ss")}`);
+//   }
+// });
 
-router.get("/get_data_mms", async (req, res) => {
-  try {
-    const getDataMms = await get_data_mms(url_mms, dbms, db_direction);
-    res.json({
-      success: true,
-      message: "Update database finish",
-      getDataMms,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Can't get data MMS",
-      error: error.message,
-    });
-  }
-});
+// router.get("/get_data_mms", async (req, res) => {
+//   try {
+//     const getDataMms = await get_data_mms(url_mms, dbms, db_direction);
+//     res.json({
+//       success: true,
+//       message: "Update database finish",
+//       getDataMms,
+//     });
+//   } catch (error) {
+//     res.status(500).json({
+//       success: false,
+//       message: "Can't get data MMS",
+//       error: error.message,
+//     });
+//   }
+// });
 
 router.post("/select", async (req, res) => {
   try {
@@ -72,8 +82,16 @@ router.post("/select", async (req, res) => {
               ,[mc_type]
               ,[mc_type] AS [mc_type_group]
               ,[mc_no]
-          FROM ${db_direction}
-          WHERE [date] BETWEEN '${startDateQuery}' AND '${endDateQuery}' AND [mc_type] NOT LIKE 'F/L%'
+          FROM ${db_direction_ir}
+          WHERE [date] BETWEEN '${startDateQuery}' AND '${endDateQuery}' AND [mc_type] LIKE 'F/L%'
+          UNION ALL
+          SELECT DISTINCT
+              [shift]
+              ,[mc_type]
+              ,[mc_type] AS [mc_type_group]
+              ,[mc_no]
+          FROM ${db_direction_sf}
+          WHERE [date] BETWEEN '${startDateQuery}' AND '${endDateQuery}' AND [mc_type] LIKE 'FL%'
       `
     );
     if (resultSelect[1] > 0) {
@@ -125,163 +143,18 @@ router.post("/status", async (req, res) => {
 
     let totalStatus = await dbms.query(
       `
-        SELECT
-            [registered]
-            ,[date]
-            ,[shift]
-            ,[mc_type]
-            ,[mc_type] AS [mc_type_group]
-            ,[mc_no]
-            ,[part_no]
+        SELECT [mc_type] AS [mc_type_group]
             ,ROUND([cycle_time_target] / [ring_type], 2) AS [cycle_time_target]
-            ,ROUND([cycle_time_actual] / [ring_type], 2) AS [cycle_time_actual]
-            ,[prod_target]
-            ,[prod_result]
-            ,[prod_ng]
-            ,[monitoring_time]
-            ,[uptime_sec]
-            ,[name_0]
-            ,[duration_0]
-            ,[count_0]
-            ,[name_1]
-            ,[duration_1]
-            ,[count_1]
-            ,[name_2]
-            ,[duration_2]
-            ,[count_2]
-            ,[name_3]
-            ,[duration_3]
-            ,[count_3]
-            ,[name_4]
-            ,[duration_4]
-            ,[count_4]
-            ,[name_5]
-            ,[duration_5]
-            ,[count_5]
-            ,[name_6]
-            ,[duration_6]
-            ,[count_6]
-            ,[name_7]
-            ,[duration_7]
-            ,[count_7]
-            ,[name_8]
-            ,[duration_8]
-            ,[count_8]
-            ,[name_9]
-            ,[duration_9]
-            ,[count_9]
-            ,[name_10]
-            ,[duration_10]
-            ,[count_10]
-            ,[name_11]
-            ,[duration_11]
-            ,[count_11]
-            ,[name_12]
-            ,[duration_12]
-            ,[count_12]
-            ,[name_13]
-            ,[duration_13]
-            ,[count_13]
-            ,[name_14]
-            ,[duration_14]
-            ,[count_14]
-            ,[name_15]
-            ,[duration_15]
-            ,[count_15]
-            ,[name_16]
-            ,[duration_16]
-            ,[count_16]
-            ,[name_17]
-            ,[duration_17]
-            ,[count_17]
-            ,[name_18]
-            ,[duration_18]
-            ,[count_18]
-            ,[name_19]
-            ,[duration_19]
-            ,[count_19]
-            ,[name_20]
-            ,[duration_20]
-            ,[count_20]
-            ,[name_21]
-            ,[duration_21]
-            ,[count_21]
-            ,[name_22]
-            ,[duration_22]
-            ,[count_22]
-            ,[name_23]
-            ,[duration_23]
-            ,[count_23]
-            ,[name_24]
-            ,[duration_24]
-            ,[count_24]
-            ,[name_25]
-            ,[duration_25]
-            ,[count_25]
-            ,[name_26]
-            ,[duration_26]
-            ,[count_26]
-            ,[name_27]
-            ,[duration_27]
-            ,[count_27]
-            ,[name_28]
-            ,[duration_28]
-            ,[count_28]
-            ,[name_29]
-            ,[duration_29]
-            ,[count_29]
-            ,[name_30]
-            ,[duration_30]
-            ,[count_30]
-            ,[name_31]
-            ,[duration_31]
-            ,[count_31]
-            ,[name_32]
-            ,[duration_32]
-            ,[count_32]
-            ,[name_33]
-            ,[duration_33]
-            ,[count_33]
-            ,[name_34]
-            ,[duration_34]
-            ,[count_34]
-            ,[name_35]
-            ,[duration_35]
-            ,[count_35]
-            ,[name_36]
-            ,[duration_36]
-            ,[count_36]
-            ,[name_37]
-            ,[duration_37]
-            ,[count_37]
-            ,[name_38]
-            ,[duration_38]
-            ,[count_38]
-            ,[name_39]
-            ,[duration_39]
-            ,[count_39]
-            ,[name_40]
-            ,[duration_40]
-            ,[count_40]
-            ,[name_41]
-            ,[duration_41]
-            ,[count_41]
-            ,[name_42]
-            ,[duration_42]
-            ,[count_42]
-            ,[name_43]
-            ,[duration_43]
-            ,[count_43]
-            ,[name_44]
-            ,[duration_44]
-            ,[count_44]
-        FROM ${db_direction}
-        WHERE [date] BETWEEN '${startDateQuery}' AND '${endDateQuery}' AND [mc_type] NOT LIKE 'F/L%'
-        ORDER BY
-            [date]
-            ,[mc_type]
-            ,[mc_no]
-            ,[shift]
+            ,ROUND([cycle_time_actual] / [ring_type], 2) AS [cycle_time_actual] ,*
+        FROM ${db_direction_ir}
+        WHERE [date] BETWEEN '${startDateQuery}' AND '${endDateQuery}' AND [mc_type] LIKE 'F/L%'
+        UNION ALL
+        SELECT [mc_type] AS [mc_type_group]
+            ,ROUND([cycle_time_target] / [ring_type], 2) AS [cycle_time_target]
+            ,ROUND([cycle_time_actual] / [ring_type], 2) AS [cycle_time_actual] ,*
+        FROM ${db_direction_sf}
+        WHERE [date] BETWEEN '${startDateQuery}' AND '${endDateQuery}' AND [mc_type] LIKE 'FL%'
+        ORDER BY [date],[mc_type],[mc_no],[shift]
       `
     );
 

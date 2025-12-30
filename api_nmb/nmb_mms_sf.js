@@ -82,7 +82,7 @@ router.post("/select", async (req, res) => {
               ,[mc_type] AS [mc_type_group]
               ,[mc_no]
           FROM ${db_direction}
-          WHERE [date] BETWEEN '${startDateQuery}' AND '${endDateQuery}'
+          WHERE [date] BETWEEN '${startDateQuery}' AND '${endDateQuery}' AND [mc_type] NOT LIKE 'FL%'
       `
     );
     if (resultSelect[1] > 0) {
@@ -285,7 +285,7 @@ router.post("/status", async (req, res) => {
             ,[duration_44]
             ,[count_44]
         FROM ${db_direction}
-        WHERE [date] BETWEEN '${startDateQuery}' AND '${endDateQuery}'
+        WHERE [date] BETWEEN '${startDateQuery}' AND '${endDateQuery}' AND [mc_type] NOT LIKE 'FL%'
         ORDER BY
             [date]
             ,[mc_type]
